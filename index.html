@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Sierpinski Carpet</title>
+</head>
+
+<body>
+
+<h2>Sierpinski Carpet</h2>
+
+분할 횟수:
+<input type="range" id="depth" min="0" max="5" value="3">
+<span id="value">3</span>
+
+색상:
+<input type="color" id="color" value="#000000">
+
+<br><br>
+
+<canvas id="canvas" width="600" height="600"></canvas>
+
+<script>
+const canvas = document.getElementById("canvas");
+const gl = canvas.getContext("webgl");
+
+const vertexShaderSource = `
+attribute vec2 position;
+
+void main() {
+    gl_Position = vec4(position, 0.0, 1.0);
+}
+`;
+
+const fragmentShaderSource = `
+precision mediump float;
+uniform vec4 color;
+
+void main() {
+    gl_FragColor = color;
+}
+`;
+
+function shader(type, source) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, source);
+    gl.compileShader(s);
+    return s;
+}
+
+const vs = shader(gl.VERTEX_SHADER, vertexShaderSource);
+const fs = shader(gl.FRAGMENT_SHADER, fragmentShaderSource);
+
+const program = gl.createProgram();
+
+gl.attachShader(program, vs);
+gl.attachShader(program, fs);
+gl.linkProgram(program);
+gl.useProgram(program);
+
+const position = gl.getAttribLocation(program, "position");
+const color = gl.getUniformLocation(program, "color");
+
+const buffer = gl.createBuffer();
+
+let vertices = [];
+
+// Sierpinski Carpet 생성
+function carpet(x, y, size, depth) {
+
+    if (depth == 0) {
+        const x2 = x + size;
+        const y2 = y + size;
+
+        vertices.push(
+            x, y, x2, y, x, y2,
+            x, y2, x2, y, x2, y2
+        );
+
+        return;
+    }
+
+    size /= 3;
+
+    for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < 3; j++) {
+
+            // 가운데 부분 제거
+            if (i == 1 && j == 1)
+                continue;
+
+            carpet(
+                x + j * size,
+                y + i * size,
+                size,
+                depth - 1
+            );
+        }
+    }
+}
+
+function draw() {
+
+    const depth =
+        Number(document.getElementById("depth").value);
+
+    vertices = [];
+
+    carpet(-0.9, -0.9, 1.8, depth);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+
+    gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array(vertices),
+        gl.STATIC_DRAW
+    );
+
+    gl.enableVertexAttribArray(position);
+
+    gl.vertexAttribPointer(
+        position,
+        2,
+        gl.FLOAT,
+        false,
+        0,
+        0
+    );
+
+    // 색상 가져오기
+    const c = document.getElementById("color").value;
+
+    const r = parseInt(c.substr(1,2),16) / 255;
+    const g = parseInt(c.substr(3,2),16) / 255;
+    const b = parseInt(c.substr(5,2),16) / 255;
+
+    gl.uniform4f(color, r, g, b, 1);
+
+    gl.clearColor(1, 1, 1, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    gl.drawArrays(
+        gl.TRIANGLES,
+        0,
+        vertices.length / 2
+    );
+}
+
+// 분할 횟수 변경
+document.getElementById("depth").oninput = function() {
+    document.getElementById("value").innerText = this.value;
+    draw();
+};
+
+// 색상 변경
+document.getElementById("color").oninput = draw;
+
+draw();
+</script>
+
+</body>
+</html>
